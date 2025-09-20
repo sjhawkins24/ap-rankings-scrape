@@ -225,3 +225,57 @@ for(i in 1:length(year)){
   print(paste0("Done with", year[i]))
 }
 write.csv(all_schedule_all_year, "College Football Rankings 2025.csv", row.names = FALSE)
+
+
+#Now lets get the week by week data 
+week <- c(1:15, 
+          1)
+year <- c("2024", 
+          "2023", 
+          "2022", 
+          "2021", 
+          "2020") 
+data <- matrix(nrow = 0, 
+               ncol = 4)
+colnames(data) <- c("AP_rank", 
+                    "Team", 
+                    "Week", 
+                    "Year")
+for(j in 1:length(year)){
+for(i in 3:length(week)){
+html <- read_html(paste0("https://www.espn.com/college-football/rankings/_/week/", 
+                         week[i], 
+                         "/year/", 
+                         year[j], 
+                         "/seasontype/", 
+                         ifelse(i < 16, 2, 3)))
+
+bin <- tryCatch({ html %>% 
+    # html_element("tbody") %>%
+    html_table() 
+},  error=function(cond) {
+  
+})
+bin <- bin[[2]] %>%
+  as.data.frame() %>%
+  select(AP_rank = "RK", 
+         Team) %>%
+  mutate(Team = gsub("[0-9]", "", Team), 
+         Team = gsub("\\(", "", Team), 
+         Team = gsub("\\)", "", Team),
+         Team =  map_chr(str_split(Team, pattern = " ", n = 2), 2), 
+         Team = trimws(Team), 
+         Week = i,
+         year = year[j]) 
+data <- rbind(data, 
+              bin)
+
+}
+  print(paste0("Finished", 
+               year[j]))
+}
+
+data <- data %>%
+  distinct()
+
+write.csv(data, "Week by Week Rankings 2020 to 2025.csv", row.names = FALSE)
