@@ -39,16 +39,19 @@ for(i in 1:length(year)){
     schedule <- schedule[,-ncol(schedule)]
     schedule <- schedule %>%
       as.data.frame() %>%
-      filter(!(DATE == "DATE" | 
-                 DATE == "Regular Season")) %>%
+      filter(grepl("Fri", DATE) | 
+               grepl("Sat", DATE)) %>%
       filter(RESULT != "Canceled") %>%
       filter(grepl("[0-9]",RESULT)) %>%
       mutate(RESULT = ifelse(substr(RESULT,1,1) == "W" | substr(RESULT,1,1) == "L", RESULT, "NA-NA")) %>%
       mutate(win_loss = substr(RESULT,1,1), 
              points_winner = map_chr(str_split(RESULT, "-"), 1), 
              points_winner = gsub("W", "", points_winner),
+             points_winner = gsub("L", "", points_winner),
              points_loser = map_chr(str_split(RESULT, "-"),2),
              points_loser = gsub("[^0-9]", "", points_loser), 
+             points_loser = gsub("L", "", points_loser), 
+             
              `HI PASS` = gsub("\\s{2}", " ", `HI PASS`), 
              `HI RUSH` = gsub("\\s{2}", " ", `HI RUSH`),
              `HI REC` = gsub("\\s{2}", " ", `HI REC`),
@@ -68,7 +71,8 @@ for(i in 1:length(year)){
              home_game = grepl("vs", OPPONENT), 
              OPPONENT = gsub("vs", "", OPPONENT), 
              OPPONENT = gsub("@", "", OPPONENT), 
-             OPPONENT = gsub(".*? ", "", OPPONENT), 
+             OPPONENT = gsub("\\*$", "", OPPONENT), 
+             OPPONENT = gsub("[0-9]", "", OPPONENT),
              Team = teams$Team[j]) %>%
       select(date = "DATE", 
              Team, 
@@ -148,16 +152,19 @@ for(i in 1:length(year)){
     schedule <- schedule[,-ncol(schedule)]
     schedule <- schedule %>%
       as.data.frame() %>%
-      filter(!(DATE == "DATE" | 
-                 DATE == "Regular Season")) %>%
+      filter(grepl("Fri", DATE) | 
+               grepl("Sat", DATE)) %>%
       filter(RESULT != "Canceled") %>%
       filter(grepl("[0-9]",RESULT)) %>%
       mutate(RESULT = ifelse(substr(RESULT,1,1) == "W" | substr(RESULT,1,1) == "L", RESULT, "NA-NA")) %>%
       mutate(win_loss = substr(RESULT,1,1), 
              points_winner = map_chr(str_split(RESULT, "-"), 1), 
              points_winner = gsub("W", "", points_winner),
+             points_winner = gsub("L", "", points_winner),
              points_loser = map_chr(str_split(RESULT, "-"),2),
              points_loser = gsub("[^0-9]", "", points_loser), 
+             points_loser = gsub("L", "", points_loser), 
+             
              `HI PASS` = gsub("\\s{2}", " ", `HI PASS`), 
              `HI RUSH` = gsub("\\s{2}", " ", `HI RUSH`),
              `HI REC` = gsub("\\s{2}", " ", `HI REC`),
@@ -177,8 +184,9 @@ for(i in 1:length(year)){
              home_game = grepl("vs", OPPONENT), 
              OPPONENT = gsub("vs", "", OPPONENT), 
              OPPONENT = gsub("@", "", OPPONENT), 
-             OPPONENT = gsub(".*? ", "", OPPONENT), 
-             Team = teams$Team[j]) %>%
+             OPPONENT = gsub("\\*$", "", OPPONENT), 
+             OPPONENT = gsub("[0-9]", "", OPPONENT),
+             Team = teams$Team[j])  %>%
       select(date = "DATE", 
              Team, 
              opponent = "OPPONENT", 
