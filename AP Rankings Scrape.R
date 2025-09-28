@@ -1,5 +1,7 @@
 library(rvest)
 library(tidyverse)
+library(rio)
+source("Bye week function.R")
 year <- c("2024", 
           "2023", 
           "2022", 
@@ -34,15 +36,21 @@ for(i in 1:length(year)){
     },  error=function(cond) {
       
     })
-    colnames(schedule) <- schedule[2,]
-    schedule <- schedule[-2,]
+if(!(is.null(schedule))){
+    colnames(schedule) <-  schedule[schedule[,1] == "DATE",][1,]
+    schedule <-  schedule[!schedule[,1] == "DATE",]
     schedule <- schedule[,-ncol(schedule)]
     schedule <- schedule %>%
       as.data.frame() %>%
       filter(grepl("Fri", DATE) | 
-               grepl("Sat", DATE)) %>%
+               grepl("Sat", DATE) | 
+               grepl(",", DATE)) %>%
       filter(RESULT != "Canceled") %>%
       filter(grepl("[0-9]",RESULT)) %>%
+      mutate(OT = grepl("OT", RESULT), 
+             OT_num = map_chr(ifelse(OT, str_extract_all(RESULT, ".(?=OT)"), NA), 1),
+             OT_num = ifelse(OT & OT_num == "", 1, OT_num)) %>%
+      mutate(RESULT = gsub(".(?=OT)", "", RESULT, perl = TRUE)) %>%
       mutate(RESULT = ifelse(substr(RESULT,1,1) == "W" | substr(RESULT,1,1) == "L", RESULT, "NA-NA")) %>%
       mutate(win_loss = substr(RESULT,1,1), 
              points_winner = map_chr(str_split(RESULT, "-"), 1), 
@@ -51,20 +59,9 @@ for(i in 1:length(year)){
              points_loser = map_chr(str_split(RESULT, "-"),2),
              points_loser = gsub("[^0-9]", "", points_loser), 
              points_loser = gsub("L", "", points_loser), 
-             
-             `HI PASS` = gsub("\\s{2}", " ", `HI PASS`), 
-             `HI RUSH` = gsub("\\s{2}", " ", `HI RUSH`),
-             `HI REC` = gsub("\\s{2}", " ", `HI REC`),
-             `HI REC` = ifelse(is.na(`HI REC`), `HI PASS`, `HI REC`), 
-             `HI PASS` = ifelse(!grepl("[0-9]", `HI PASS`), paste(trimws(`HI PASS`), "0"), `HI PASS`),
-             `HI RUSH` = ifelse(!grepl("[0-9]", `HI RUSH`), paste(trimws(`HI RUSH`), "0"), `HI RUSH`),
-             `HI REC` = ifelse(!grepl("[0-9]", `HI REC`), paste(trimws(`HI REC`), "0"), `HI REC`),
-             pass = map_chr(str_split(`HI PASS`, " "), 2),
-             pass = ifelse(pass == "as", NA, pass),
-             rush = map_chr(str_split(`HI RUSH`, " "), 2),
-             rush = ifelse(rush == "as", NA, rush), 
-             rec = map_chr(str_split(`HI REC`, " "), 2), 
-             rec = ifelse(rec == "as", NA, rec), 
+             pass = gsub("[^0-9]", "", `HI PASS`), 
+             rush = gsub("[^0-9]", "", `HI RUSH`),
+             rec = gsub("[^0-9]", "", `HI REC`),
              points_allowed = ifelse(win_loss == "W", points_loser, points_winner),  
              points_scored = ifelse(win_loss == "W", points_winner, points_loser), 
              point_differential = as.numeric(points_scored) - as.numeric(points_allowed), 
@@ -73,11 +70,16 @@ for(i in 1:length(year)){
              OPPONENT = gsub("@", "", OPPONENT), 
              OPPONENT = gsub("\\*$", "", OPPONENT), 
              OPPONENT = gsub("[0-9]", "", OPPONENT),
-             Team = teams$Team[j]) %>%
+             OPPONENT = trimws(OPPONENT), 
+             Team = trimws(teams$team_and_mascot[j]), 
+             Team_id = teams$code[j]) %>%
       select(date = "DATE", 
              Team, 
+             Team_id, 
              opponent = "OPPONENT", 
              win_loss, 
+             OT, 
+             OT_num,
              pass, 
              rush, 
              rec, 
@@ -85,6 +87,8 @@ for(i in 1:length(year)){
              points_scored, 
              point_differential, 
              home_game)
+    schedule <- padding_weeks(schedule, 
+                              year[i])
     
     if(exists("all_schedule")){
       all_schedule <- rbind(all_schedule, 
@@ -95,6 +99,7 @@ for(i in 1:length(year)){
       rm(schedule)
     }
     print(paste("Done with", teams$Team[j]))
+}
   }
   all_schedule <- all_schedule %>%
     mutate(season = year[i]) %>% 
@@ -112,7 +117,7 @@ for(i in 1:length(year)){
   print(paste0("Done with", year[i]))
 }
 
-write.csv(all_schedule_all_year, "College Football Rankings 24 to 20.csv", row.names = FALSE)
+write.csv(all_schedule_all_year, "CollegeFootballRankings24to20.csv", row.names = FALSE)
 
 
 #Now getting the current year's data 
